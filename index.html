@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>PlaySnes</title>
+  <script src="https://unpkg.com/jsnes@0.7.0/dist/jsnes.min.js"></script>
+  <style>
+    body { background:#111; color:#eee; font-family:sans-serif; text-align:center; }
+    h1 { margin-top:20px; }
+    #romList { margin:20px auto; max-width:300px; }
+    #romList button {
+      display:block; width:100%; margin:6px 0; padding:10px;
+      background:#222; border:1px solid #555; color:#eee; cursor:pointer; border-radius:6px;
+    }
+    #romList button:hover { background:#333; }
+    canvas { background:black; margin-top:20px; border:2px solid #555; border-radius:8px; }
+  </style>
+</head>
+<body>
+  <h1>Play NES & SNES</h1>
+  <p>Selecciona una ROM para jugar:</p>
+
+  <div id="romList">
+    <!-- 🔽 Agrega aquí tus ROMs -->
+    <button onclick="loadRom('roms/mario.nes')">Super Mario Bros (NES)</button>
+    <button onclick="loadRom('roms/zelda.nes')">Zelda (NES)</button>
+    <button onclick="loadRom('roms/metroid.sfc')">Super Metroid (SNES - solo interfaz)</button>
+  </div>
+
+  <canvas id="screen" width="256" height="240"></canvas>
+  <p style="color:#888;font-size:14px">Controles: Flechas, Z = A, X = B, Enter = Start, Shift = Select</p>
+
+  <script>
+    const canvas = document.getElementById('screen');
+    const ctx = canvas.getContext('2d');
+    const imageData = ctx.createImageData(256, 240);
+    let nes;
+
+    function initNES() {
+      nes = new jsnes.NES({
+        onFrame: function(frameBuffer){
+          for (let i = 0; i < frameBuffer.length; i++) {
+            const j = i * 4;
+            const c = frameBuffer[i];
+            imageData.data[j]   = (c >> 16) & 0xFF;
+            imageData.data[j+1] = (c >>  8) & 0xFF;
+            imageData.data[j+2] =  c        & 0xFF;
+            imageData.data[j+3] = 0xFF;
+          }
+          ctx.putImageData(imageData,0,0);
+        }
+      });
+    }
+
+    async function loadRom(path){
+      if(!nes) initNES();
+      const res = await fetch(path);
+      const buffer = await res.arrayBuffer();
+      nes.loadROM(Array.from(new Uint8Array(buffer)));
+      requestAnimationFrame(frame);
+    }
+
+    function frame(){
+      nes.frame();
+      requestAnimationFrame(frame);
+    }
+
+    initNES();
+
+    // Teclado
+    const keyMap = {
+      'ArrowLeft':'LEFT','ArrowRight':'RIGHT','ArrowUp':'UP','ArrowDown':'DOWN',
+      'z':'A','x':'B','Enter':'START','Shift':'SELECT'
+    };
+    window.addEventListener('keydown',e=>{
+      if(keyMap[e.key]){ e.preventDefault(); nes.buttonDown(1, jsnes.Controller[keyMap[e.key]]); }
+    });
+    window.addEventListener('keyup',e=>{
+      if(keyMap[e.key]){ e.preventDefault(); nes.buttonUp(1, jsnes.Controller[keyMap[e.key]]); }
+    });
+  </script>
+</body>
+</html>
